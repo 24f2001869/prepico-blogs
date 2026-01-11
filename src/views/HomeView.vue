@@ -1,40 +1,36 @@
 <template>
-  <div class="home-view">
-    <!-- Header -->
-    <div class="mb-10 text-center">
-      <h1 class="text-4xl font-bold text-gray-900 mb-4">Prepico Blogs</h1>
-      <p class="text-gray-600 max-w-2xl mx-auto">
-        Discover insightful articles and tutorials. Created with Vue 3, Supabase, and block-based editing.
-      </p>
+  <div class="p-6">
+    <h1 class="text-3xl font-bold mb-6">Prepico Blogs</h1>
+    
+    <!-- Show loading or blogs -->
+    <div v-if="loading" class="text-center py-8">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <p class="mt-2 text-gray-600">Loading blogs...</p>
     </div>
-
-    <!-- Blog List -->
-    <BlogList 
-      :blogs="store.blogs"
-      :loading="store.loading"
-      :error="store.error"
-      :show-delete="false"
-      @refresh="fetchBlogs"
-    />
-
-    <!-- Stats -->
-    <div v-if="!store.loading && store.blogs.length > 0" class="mt-12 pt-8 border-t">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="bg-blue-50 p-6 rounded-lg">
-          <div class="text-3xl font-bold text-blue-600">{{ store.blogs.length }}</div>
-          <div class="text-gray-700">Total Blogs</div>
-        </div>
-        <div class="bg-green-50 p-6 rounded-lg">
-          <div class="text-3xl font-bold text-green-600">
-            {{ totalBlocks }}
-          </div>
-          <div class="text-gray-700">Content Blocks</div>
-        </div>
-        <div class="bg-purple-50 p-6 rounded-lg">
-          <div class="text-3xl font-bold text-purple-600">
-            {{ latestBlogDate }}
-          </div>
-          <div class="text-gray-700">Latest Update</div>
+    
+    <div v-else-if="blogs.length === 0" class="text-center py-8">
+      <p class="text-gray-600 mb-4">No blogs yet. Create your first blog!</p>
+      <router-link 
+        to="/admin" 
+        class="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+      >
+        Go to Admin
+      </router-link>
+    </div>
+    
+    <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div 
+        v-for="blog in blogs" 
+        :key="blog.id"
+        class="bg-white p-6 rounded-lg shadow hover:shadow-md cursor-pointer"
+        @click="$router.push(`/blog/${blog.id}`)"
+      >
+        <h2 class="text-xl font-bold mb-2">{{ blog.title }}</h2>
+        <p class="text-gray-600 text-sm mb-4">
+          {{ new Date(blog.created_at).toLocaleDateString() }}
+        </p>
+        <div class="text-blue-600 hover:text-blue-800">
+          Read more →
         </div>
       </div>
     </div>
@@ -42,38 +38,30 @@
 </template>
 
 <script setup>
-import { onMounted, computed } from 'vue'
-import { useBlogStore } from '@/stores/blogStore'
-import BlogList from '@/components/BlogList.vue'
+import { ref, onMounted } from 'vue'
+import { supabase } from '../services/supabase'
 
-const store = useBlogStore()
+const blogs = ref([])
+const loading = ref(true)
 
-// Fetch blogs on mount
-const fetchBlogs = () => {
-  store.fetchBlogs()
+const fetchBlogs = async () => {
+  loading.value = true
+  try {
+    const { data, error } = await supabase
+      .from('blogs')
+      .select('*')
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    blogs.value = data || []
+  } catch (err) {
+    console.error('Error fetching blogs:', err)
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(() => {
   fetchBlogs()
-})
-
-// Compute total blocks
-const totalBlocks = computed(() => {
-  return store.blogs.reduce((total, blog) => {
-    return total + (blog.content?.length || 0)
-  }, 0)
-})
-
-// Get latest blog date
-const latestBlogDate = computed(() => {
-  if (store.blogs.length === 0) return 'N/A'
-  
-  const dates = store.blogs.map(blog => new Date(blog.created_at))
-  const latest = new Date(Math.max(...dates))
-  
-  return latest.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric'
-  })
 })
 </script>
