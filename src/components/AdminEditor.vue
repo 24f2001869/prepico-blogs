@@ -398,4 +398,41 @@
                     v-for="(colBlock, colBlockIndex) in column.blocks" 
                     :key="colBlock.id"
                     class="p-3 bg-white border border-gray-200 rounded"
-                    @click.stop="selectColumnBlock(block, colIndex, colBlockIndex
+                    @click.stop="selectColumnBlock(block, colIndex, colBlockIndex)"
+                  >
+                    <div class="text-xs text-gray-500 mb-1">{{ formatBlockType(colBlock.type) }}</div>
+                    <div class="truncate text-sm">
+                      {{ getBlockPreview(colBlock) }}
+                    </div>
+                  </div>
+                  
+                  <button 
+                    @click.stop="addBlockToColumn(block, colIndex)"
+                    class="w-full p-2 border border-dashed border-gray-300 rounded text-gray-500 hover:text-gray-700 hover:border-gray-400 text-sm"
+                  >
+                    + Add to Column
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nested Layout -->
+          <div v-else-if="block.type === 'nested-layout'" class="space-y-4">
+            <div class="flex items-center gap-2 text-purple-600">
+              <span>⬇️</span>
+              <span class="font-medium">Nested Layout</span>
+            </div>
+            
+            <div class="border-l-4 border-purple-300 pl-4">
+              <div 
+                v-for="(nestedBlock, nestedIndex) in block.blocks" 
+                :key="nestedBlock.id"
+                class="mb-3 ml-4 p-3 border border-gray-200 rounded bg-gray-50"
+              >
+                <div class="text-xs text-gray-500 mb-1">{{ formatBlockType(nestedBlock.type) }}</div>
+                <div class="text-sm">
+                  {{ getBlockPreview(nestedBlock) }}
+                </div>
+              </div>
+          
