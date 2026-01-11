@@ -435,4 +435,332 @@
                   {{ getBlockPreview(nestedBlock) }}
                 </div>
               </div>
-          
+                        <button 
+                @click.stop="addNestedBlock(block)"
+                class="ml-4 px-3 py-1 text-sm bg-purple-100 border border-purple-300 text-purple-700 rounded hover:bg-purple-200"
+              >
+                + Add Nested Block
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div v-if="blocks.length === 0" class="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
+      <div class="text-gray-400 text-5xl mb-4">📝</div>
+      <h3 class="text-xl font-semibold text-gray-700 mb-2">Start Building Your Blog</h3>
+      <p class="text-gray-500 mb-6">Add your first content block using the toolbar above</p>
+      <button @click="addBlock('paragraph')" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+        + Add Paragraph Block
+      </button>
+    </div>
+
+    <!-- Column Block Modal (simplified) -->
+    <div v-if="showColumnModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-full max-w-md">
+        <h3 class="text-lg font-bold mb-4">Add Block to Column</h3>
+        <div class="grid grid-cols-2 gap-2">
+          <button @click="addColumnBlock('paragraph')" class="p-3 border rounded hover:bg-gray-50">
+            Paragraph
+          </button>
+          <button @click="addColumnBlock('image')" class="p-3 border rounded hover:bg-gray-50">
+            Image
+          </button>
+        </div>
+        <div class="mt-6 flex justify-end gap-3">
+          <button @click="showColumnModal = false" class="px-4 py-2 border rounded">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, watch, computed } from 'vue'
+
+const props = defineProps({
+  modelValue: {
+    type: Array,
+    default: () => []
+  }
+})
+
+const emit = defineEmits(['update:modelValue'])
+
+const blocks = ref(props.modelValue || [])
+const selectedIndex = ref(-1)
+const selectedColumn = ref(null)
+const showColumnModal = ref(false)
+const modalTarget = ref({ blockId: null, colIndex: null })
+
+// Generate unique ID for blocks
+const generateId = () => {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2)
+}
+
+// Add different types of blocks
+const addBlock = (type) => {
+  const baseBlock = {
+    id: generateId(),
+    type,
+    content: ''
+  }
+
+  switch (type) {
+    case 'paragraph':
+    case 'heading':
+    case 'subheading':
+      baseBlock.content = ''
+      break
+      
+    case 'bullet-list':
+    case 'number-list':
+      baseBlock.items = ['First item']
+      break
+      
+    case 'image':
+      baseBlock.content = ''
+      baseBlock.alt = ''
+      baseBlock.caption = ''
+      break
+      
+    case 'video':
+      baseBlock.content = ''
+      break
+      
+    case 'audio':
+      baseBlock.content = ''
+      baseBlock.title = ''
+      baseBlock.artist = ''
+      break
+      
+    case 'file':
+      baseBlock.content = ''
+      baseBlock.title = ''
+      baseBlock.size = ''
+      break
+      
+    case 'row-layout':
+      baseBlock.columns = [
+        { id: generateId(), blocks: [] },
+        { id: generateId(), blocks: [] }
+      ]
+      break
+      
+    case 'nested-layout':
+      baseBlock.blocks = []
+      break
+  }
+
+  if (selectedIndex.value === -1) {
+    blocks.value.push(baseBlock)
+  } else {
+    blocks.value.splice(selectedIndex.value + 1, 0, baseBlock)
+  }
+  
+  selectedIndex.value = blocks.value.length - 1
+  updateBlocks()
+}
+
+const addRowLayout = () => {
+  addBlock('row-layout')
+}
+
+const addNestedLayout = () => {
+  addBlock('nested-layout')
+}
+
+// List operations
+const addListItem = (block) => {
+  if (!block.items) block.items = []
+  block.items.push('New item')
+  updateBlocks()
+}
+
+const removeListItem = (block, index) => {
+  if (block.items && block.items.length > 1) {
+    block.items.splice(index, 1)
+    updateBlocks()
+  }
+}
+
+// Column operations
+const addColumn = (block) => {
+  if (block.columns && block.columns.length < 4) {
+    block.columns.push({ id: generateId(), blocks: [] })
+    updateBlocks()
+  }
+}
+
+const removeColumn = (block, colIndex) => {
+  if (block.columns && block.columns.length > 2) {
+    block.columns.splice(colIndex, 1)
+    updateBlocks()
+  }
+}
+
+const addBlockToColumn = (block, colIndex) => {
+  modalTarget.value = { blockId: block.id, colIndex }
+  showColumnModal.value = true
+}
+
+const addColumnBlock = (type) => {
+  const target = modalTarget.value
+  const block = blocks.value.find(b => b.id === target.blockId)
+  
+  if (block && block.columns) {
+    const newBlock = {
+      id: generateId(),
+      type,
+      content: type === 'paragraph' ? 'Column content' : ''
+    }
+    
+    block.columns[target.colIndex].blocks.push(newBlock)
+    updateBlocks()
+    showColumnModal.value = false
+  }
+}
+
+const addNestedBlock = (block) => {
+  if (!block.blocks) block.blocks = []
+  
+  block.blocks.push({
+    id: generateId(),
+    type: 'paragraph',
+    content: 'Nested content'
+  })
+  updateBlocks()
+}
+
+// Selection
+const selectBlock = (index) => {
+  selectedIndex.value = index
+  selectedColumn.value = null
+}
+
+const selectColumn = (block, colIndex) => {
+  selectedColumn.value = { blockId: block.id, colIndex }
+  selectedIndex.value = blocks.value.findIndex(b => b.id === block.id)
+}
+
+const selectColumnBlock = (block, colIndex, colBlockIndex) => {
+  selectedColumn.value = { 
+    blockId: block.id, 
+    colIndex, 
+    colBlockIndex 
+  }
+  selectedIndex.value = blocks.value.findIndex(b => b.id === block.id)
+}
+
+// Block operations
+const moveUp = () => {
+  if (selectedIndex.value > 0) {
+    const block = blocks.value[selectedIndex.value]
+    blocks.value.splice(selectedIndex.value, 1)
+    blocks.value.splice(selectedIndex.value - 1, 0, block)
+    selectedIndex.value--
+    updateBlocks()
+  }
+}
+
+const moveDown = () => {
+  if (selectedIndex.value < blocks.value.length - 1) {
+    const block = blocks.value[selectedIndex.value]
+    blocks.value.splice(selectedIndex.value, 1)
+    blocks.value.splice(selectedIndex.value + 1, 0, block)
+    selectedIndex.value++
+    updateBlocks()
+  }
+}
+
+const duplicateBlock = () => {
+  if (selectedIndex.value !== -1) {
+    const original = blocks.value[selectedIndex.value]
+    const duplicate = JSON.parse(JSON.stringify(original))
+    duplicate.id = generateId()
+    
+    blocks.value.splice(selectedIndex.value + 1, 0, duplicate)
+    selectedIndex.value++
+    updateBlocks()
+  }
+}
+
+const removeBlock = () => {
+  if (selectedIndex.value !== -1) {
+    blocks.value.splice(selectedIndex.value, 1)
+    selectedIndex.value = -1
+    selectedColumn.value = null
+    updateBlocks()
+  }
+}
+
+// Helpers
+const formatBlockType = (type) => {
+  const types = {
+    'paragraph': 'Paragraph',
+    'heading': 'Heading',
+    'subheading': 'Subheading',
+    'bullet-list': 'Bullet List',
+    'number-list': 'Number List',
+    'image': 'Image',
+    'video': 'Video',
+    'audio': 'Audio',
+    'file': 'File',
+    'row-layout': 'Row Layout',
+    'nested-layout': 'Nested Layout'
+  }
+  return types[type] || type
+}
+
+const getBlockPreview = (block) => {
+  if (block.type === 'paragraph' || block.type === 'heading' || block.type === 'subheading') {
+    return block.content || '(Empty)'
+  } else if (block.type === 'bullet-list' || block.type === 'number-list') {
+    return `${block.items?.length || 0} items`
+  } else if (block.type === 'image' || block.type === 'video' || block.type === 'audio' || block.type === 'file') {
+    return block.content ? 'URL added' : '(No URL)'
+  } else if (block.type === 'row-layout') {
+    return `${block.columns?.length || 0} columns`
+  } else if (block.type === 'nested-layout') {
+    return `${block.blocks?.length || 0} nested blocks`
+  }
+  return '(Preview)'
+}
+
+const isValidImage = (url) => {
+  return /\.(jpg|jpeg|png|gif|webp)$/i.test(url)
+}
+
+const isYouTubeUrl = (url) => {
+  return /youtube\.com|youtu\.be/i.test(url)
+}
+
+const getYouTubeId = (url) => {
+  const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)
+  return match ? match[1] : ''
+}
+
+// Update parent
+const updateBlocks = () => {
+  emit('update:modelValue', blocks.value)
+}
+
+// Watch for external changes
+watch(() => props.modelValue, (newVal) => {
+  blocks.value = newVal || []
+}, { deep: true })
+</script>
+
+<style scoped>
+.column-container:hover {
+  @apply border-gray-400;
+}
+
+.block-content > * + * {
+  margin-top: 0.75em;
+}
+</style>
